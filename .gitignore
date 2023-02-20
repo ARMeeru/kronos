@@ -1,0 +1,19 @@
+# ignore Go build artifacts
+*.o
+*.a
+*.exe
+
+# ignore the 'kronos' binary
+kronos
+
+# ignore vendor directory
+vendor/
+
+# macOS-specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Go modules cache
+/go/
+/bin/
