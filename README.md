@@ -27,3 +27,4 @@ If you find a bug or have a feature request, please open an issue on GitHub. Pul
 ## To improve
 - Error handling
 - ~~User feedback~~
+- Testing
