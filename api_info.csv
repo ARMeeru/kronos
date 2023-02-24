@@ -1,0 +1,2 @@
+GET,https://api.ipify.org,"Content-Type=application/json",""
+POST,https://reqbin.com/echo/post/json,"Content-Type=application/json","{""name"": ""John"", ""age"": 30}"

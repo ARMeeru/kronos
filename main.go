@@ -1,8 +1,10 @@
 package main
 
 import (
-	"bufio"
+	"encoding/csv"
+	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -11,47 +13,31 @@ import (
 	"time"
 )
 
-type apiInfo struct {
-	Method      string
+// The client field specifies the settings for the HTTP client, including the maximum time allowed for a request to complete.
+type Kronos struct {
+	client *http.Client
+}
+
+type APIInfo struct {
+	Method string
+	URL    string
+	// The Headers field is a map that associates string keys with string values
 	Headers     map[string]string
 	RequestBody string
 }
 
-type Kronos struct {
-	reader *bufio.Reader
-	client *http.Client
-}
-
+// By returning a pointer here, the function ensures that any changes made to the Kronos instance will be reflected in the original instance, rather than creating a copy of the instance.
 func NewKronos() *Kronos {
 	return &Kronos{
-		reader: bufio.NewReader(os.Stdin),
 		client: &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
-func (k *Kronos) Run() {
-	apiInfo, err := k.getAPIInfoFromUser()
+func (k *Kronos) Run(apiInfo *APIInfo, threshold time.Duration) {
+	req, err := http.NewRequest(apiInfo.Method, apiInfo.URL, nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting API information:", err)
-		os.Exit(1)
-	}
-
-	url, err := k.getURLFromUser()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting API URL:", err)
-		os.Exit(1)
-	}
-
-	threshold, err := k.getThresholdFromUser()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting threshold:", err)
-		os.Exit(1)
-	}
-
-	req, err := http.NewRequest(apiInfo.Method, url, nil)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating HTTP request:", err)
-		os.Exit(1)
+		fmt.Printf("Error creating HTTP request for %s %s: %v\n", apiInfo.Method, apiInfo.URL, err)
+		return
 	}
 
 	for key, value := range apiInfo.Headers {
@@ -67,99 +53,89 @@ func (k *Kronos) Run() {
 	elapsed := time.Since(start)
 
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error sending HTTP request:", err)
-		os.Exit(1)
+		fmt.Printf("Error sending HTTP request for %s %s: %v\n", apiInfo.Method, apiInfo.URL, err)
+		return
 	}
 
 	defer resp.Body.Close()
 
-	fmt.Printf("Response time: %v\n", elapsed)
+	fmt.Printf("Response time for %s %s: %v\n", apiInfo.Method, apiInfo.URL, elapsed)
 
 	if elapsed > threshold {
-		fmt.Printf("Test failed: response time exceeded threshold of %v.\n", threshold)
+		fmt.Printf("Test failed: response time for %s %s exceeded threshold of %v.\n", apiInfo.Method, apiInfo.URL, threshold)
 	} else {
-		fmt.Println("Test passed.")
+		fmt.Printf("Test passed for %s %s.\n", apiInfo.Method, apiInfo.URL)
 	}
 }
 
-func (k *Kronos) getAPIInfoFromUser() (apiInfo, error) {
-	var info apiInfo
-
-	fmt.Print("Enter API method (GET/POST/PUT/DELETE): ")
-	method, err := k.reader.ReadString('\n')
+func readAPIInfoFromCSV(filename string) ([]*APIInfo, error) {
+	file, err := os.Open(filename)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	method = strings.TrimSpace(method)
-	if method == "" {
-		return info, fmt.Errorf("method cannot be empty")
+	defer file.Close()
+
+	r := csv.NewReader(file)
+	var apiInfos []*APIInfo
+
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		apiInfo := &APIInfo{
+			Method:      record[0],
+			URL:         record[1],
+			Headers:     parseKeyValueString(record[2]),
+			RequestBody: record[3],
+		}
+
+		apiInfos = append(apiInfos, apiInfo)
 	}
 
-	fmt.Print("Enter API headers (in key=value format, separated by commas): ")
-	headersStr, err := k.reader.ReadString('\n')
-	if err != nil {
-		return info, err
-	}
-	headersStr = strings.TrimSpace(headersStr)
+	return apiInfos, nil
+}
+
+func parseKeyValueString(s string) map[string]string {
 	headers := make(map[string]string)
-	if headersStr != "" {
-		headersArr := strings.Split(headersStr, ",")
-		for _, header := range headersArr {
-			headerKV := strings.Split(header, "=")
-			if len(headerKV) == 2 {
-				headers[headerKV[0]] = headerKV[1]
-			}
+	headerPairs := strings.Split(s, ",")
+	for _, pair := range headerPairs {
+		pairParts := strings.Split(pair, "=")
+		if len(pairParts) == 2 {
+			headers[pairParts[0]] = pairParts[1]
 		}
 	}
-
-	fmt.Print("Enter API request body (in key=value format, separated by commas): ")
-	requestBody, err := k.reader.ReadString('\n')
-	if err != nil {
-		return info, err
-	}
-	requestBody = strings.TrimSpace(requestBody)
-
-	info.Method = method
-	info.Headers = headers
-	info.RequestBody = requestBody
-
-	return info, nil
-}
-
-func (k *Kronos) getURLFromUser() (string, error) {
-	fmt.Print("Enter API URL: ")
-	url, err := k.reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	url = strings.TrimSpace(url)
-	if url == "" {
-		return "", fmt.Errorf("URL cannot be empty")
-	}
-	return url, nil
-}
-
-func (k *Kronos) getThresholdFromUser() (time.Duration, error) {
-	fmt.Print("Enter acceptable response time threshold (in seconds): ")
-	thresholdStr, err := k.reader.ReadString('\n')
-	if err != nil {
-		return 0, err
-	}
-	thresholdStr = strings.TrimSpace(thresholdStr)
-	if thresholdStr == "" {
-		return 0, fmt.Errorf("threshold cannot be empty")
-	}
-
-	threshold, err := strconv.Atoi(thresholdStr)
-	if err != nil {
-		fmt.Println("Invalid input, using default threshold of 3 seconds.")
-		return 3 * time.Second, nil
-	}
-
-	return time.Duration(threshold) * time.Second, nil
+	return headers
 }
 
 func main() {
+	csvFilename := flag.String("csv", "", "CSV file containing API info")
+	thresholdStr := flag.String("threshold", "1", "Acceptable response time threshold (in seconds)")
+	flag.Parse()
+
+	if *csvFilename == "" {
+		fmt.Println("Error: CSV file path cannot be empty")
+		os.Exit(1)
+	}
+
+	apiInfos, err := readAPIInfoFromCSV(*csvFilename)
+	if err != nil {
+		fmt.Println("Error reading API info from CSV:", err)
+		os.Exit(1)
+	}
+
+	threshold, err := strconv.Atoi(*thresholdStr)
+	if err != nil {
+		fmt.Println("Invalid threshold value, using default value of 1 seconds")
+		threshold = 3
+	}
+
 	k := NewKronos()
-	k.Run()
+	for _, apiInfo := range apiInfos {
+		k.Run(apiInfo, time.Duration(threshold)*time.Second)
+	}
 }
