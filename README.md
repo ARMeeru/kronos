@@ -9,8 +9,8 @@ Ask for available flags
 
     ./kronos -help
 
--csv is required
--threshold is optional
+- csv is required
+- threshold is optional
 Get the program running
 
     ./kronos -csv api_info.csv or ./kronos -csv api_info.csv -threshold 3
