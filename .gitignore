@@ -17,3 +17,17 @@ vendor/
 # Go modules cache
 /go/
 /bin/
+
+# pytest cache and output files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pyzw
+*.pytest_cache/
+*.coverage
+
+# pytest temporary files
+*.~1~
