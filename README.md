@@ -11,7 +11,7 @@ Ask for available flags
 
 Get the program running
 
-    ./kronos -csv api_info.csv or ./kronos -csv api_info.csv -threshold 3
+`./kronos -csv api_info.csv` OR `./kronos -csv api_info.csv -threshold 3`
 
 Sample response
 
@@ -30,4 +30,4 @@ If you find a bug or have a feature request, please open an issue on GitHub. Pul
 
 -  ~~User feedback~~
 
-- Testing
+- ~~Testing~~
