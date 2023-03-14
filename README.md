@@ -20,7 +20,7 @@ Sample response
 ## 1.2. Contributing
 If you find a bug or have a feature request, please open an issue on GitHub. Pull requests are also welcome.
 ## 1.3. To improve
-- Implement concurrency
+- ~~Implement concurrency~~
 - ~~Error handling~~
 - ~~User feedback~~
 - Testing (files will be added properly later)
