@@ -1,3 +1,5 @@
+> **Archived (September 2026).** A 163-line Go CLI from 2023: a CSV of endpoints, a goroutine pool, a response-time threshold. Its own test file said "Let's come back to testing later"; nothing came back. hey or httpstat cover this ground better.
+
 # 1. Kronos
 Kronos is a simple command-line utility to test the response time of HTTP APIs. You can specify the API method, URL, headers, request body, and the acceptable response time threshold, and Kronos will make the HTTP request and report whether the response time was within the threshold.
 ## 1.1. Usage
